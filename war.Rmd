@@ -1,0 +1,191 @@
+---
+title: "WAR"
+author: "Juan Valencia"
+date: "5/12/2021"
+output: pdf_document
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, collapse = T)
+```
+
+## **Introduction**
+
+I wanted to show which advanced baseball stats most correlate with WAR, which in baseball is the best indicator of success. My analysis will show which statistics can be used to find the best fit model. I acquired my data though [baseball-reference.com](https://www.baseball-reference.com/leagues/MLB/2017-value-batting.shtml), and the data I am using is the Team Player Value for Batters in the 2017 baseball season.
+
+
+
+## **Packages and Data Preparation**
+
+The dataset contains 12 columns of different baseball statistics with 30 rows representing the 30 teams in the MLB. The column names and definitions are the following:
+
+ - PA -- Plate Appearances
+
+ - Rbat -- Runs Batting
+Number of runs better or worse than average the player was as a hitter.
+This is based on a modified version of wRAA.
+
+ - Rbaser -- Runs from Baserunning
+Number of runs better or worse than average the player was for all baserunning events.
+SB, CS, PB, WP, Defensive Indifference.
+
+ - Rdp -- Runs Grounded into Double Plays
+Number of runs better or worse than average the player was at avoiding grounding into double plays.
+
+ - Rfield -- Runs from Fielding
+Number of runs better or worse than average the player was for all fielding.
+Fielding of balls in play, turning double plays, outfield arms and catcher defense are all included.
+
+ - Rpos -- Runs from Positional Scarcity
+Number of runs above or below average due to positional differences.
+Positions like C, SS, and 2B get a bonus.
+Positions like 1B, DH, LF get a penalty.
+
+ - RAA -- Runs better than Avg
+It is the number of runs this player is better than a league average player.
+
+ - WAA -- Wins Above Avg
+This is the wins added by this player above that of an average player. I compute the waaW-L% using a PythagenPat conversion and then subtract .500 and multiply by the number of games played.
+
+ - Rrep -- Runs from Replacement Level
+Number of runs an average player is better than a replacement player.
+Replacement is set for a .294 team winning percentage.
+Stronger leagues may get a larger bonus.
+
+ - RAR -- Runs above Replacement Level
+Total of other columns It is the number of runs this player is better than a replacement player. Replacement is set for a .294 team winning percentage.
+
+ - WAR -- Wins Above Replacement
+A single number that presents the number of wins the player added
+to the team above what a replacement player (think AAA or AAAA) would add.
+Scale for a single-season: 8+ MVP Quality, 5+ All-Star Quality, 2+ Starter,
+0-2 Reserve, < 0 Replacement Level
+
+ - waaWL% -- Win-Loss% w/ Avg. Team
+This is the win-loss of an otherwise average team in ONLY the games this player played in.
+For example, for a pitcher this would only consider the games the pitcher threw in and ignoring games they did not play in.
+162WL% -- Win-Loss% w/ Avg. Team Season
+This is the win-loss of an otherwise average team for an entire season giving them credit for only the games this player played in.
+
+ - oRAR -- Offensive Runs above Replacement Level
+ 
+# **A Data Cleaning**
+
+Loading the data produces seven columns and one row with only NA values. I removed those columns and the row and plotted the data.
+```{r,echo=FALSE}
+shhh <- suppressPackageStartupMessages
+shhh(suppressWarnings(library(olsrr)))
+shhh(suppressWarnings(library(tidyverse)))
+shhh(suppressWarnings(library(ggplot2)))
+shhh(suppressWarnings(library(MPV)))
+shhh(suppressWarnings(library(car)))
+shhh(suppressWarnings(library(tinytex)))
+```
+
+
+```{r, echo=FALSE,  fig.height=7, fig.width=13, collapse=TRUE}
+war1 = read.csv(file = "BBWAR.csv")
+war <- war1 %>% select(2:13)
+war <- head(war, -1)
+war1 <- head(war1, -1) %>% select(1:13)
+summary(lm(WAR~.,war))
+plot(war)
+
+
+```
+
+
+
+
+```{r}
+plot(lm(WAR~., war),which = 2)
+```
+
+My model shows that I have eleven models that stand out as being candidates for the best model, so my
+analysis will be on these eleven models to find the best model.
+```{r, linewidth = 80}
+ols_step_best_subset(lm(WAR~.,war))
+```
+
+For the PRESS statistic I can rule out PRESS(lm(WAR~RAR,war)) because it is much larger than the other values.
+```{r}
+PRESS(lm(WAR~RAR,war))
+PRESS(lm(WAR~WAA+ Rrep,war))
+PRESS(lm(WAR~Rbat+ WAA+ Rrep,war))
+PRESS(lm(WAR~Rdp+ WAA+ Rrep+ oRAR,war))
+PRESS(lm(WAR~Rfield+ WAA+ Rrep+ RAR+ oRAR,war))
+PRESS(lm(WAR~Rbat+ Rfield+ RAA+ WAA+ Rrep+ oRAR,war))
+PRESS(lm(WAR~Rbat+ Rfield+ RAA+ WAA +Rrep+ RAR+ oRAR,war))
+PRESS(lm(WAR~Rbat+ Rfield+ Rpos +RAA+ WAA+ Rrep +RAR +oRAR,war))
+PRESS(lm(WAR~PA +Rbat+ Rfield +Rpos+ RAA+ WAA+ Rrep+ RAR+ oRAR,war))
+PRESS(lm(WAR~Rbat +Rbaser+ Rdp+ Rfield +Rpos +RAA +WAA+ Rrep +RAR +oRAR,war))
+PRESS(lm(WAR~PA+ Rbat+ Rbaser+ Rdp +Rfield+ Rpos+ RAA+ WAA+ Rrep+ RAR+ oRAR,war))
+
+```
+
+The models vif(lm(WAR~WAA+ Rrep,war)) and vif(lm(WAR~Rbat+ WAA+ Rrep,war)) show good VIF scores, since their VIFs are lower than 5, so they have no
+potential multicollinearity problems. The rest of the models show multicollinearity.
+```{r}
+vif(lm(WAR~WAA+ Rrep,war))
+vif(lm(WAR~Rbat+ WAA+ Rrep,war))
+vif(lm(WAR~Rdp+ WAA+ Rrep+ oRAR,war))
+vif(lm(WAR~Rfield+ WAA+ Rrep+ RAR+ oRAR,war))
+vif(lm(WAR~Rbat+ Rfield+ RAA+ WAA+ Rrep+ oRAR,war))
+vif(lm(WAR~Rbat+ Rfield+ RAA+ WAA +Rrep+ RAR+ oRAR,war))
+vif(lm(WAR~Rbat+ Rfield+ Rpos +RAA+ WAA+ Rrep +RAR +oRAR,war))
+vif(lm(WAR~PA +Rbat+ Rfield +Rpos+ RAA+ WAA+ Rrep+ RAR+ oRAR,war))
+vif(lm(WAR~Rbat +Rbaser+ Rdp+ Rfield +Rpos +RAA +WAA+ Rrep +RAR +oRAR,war))
+vif(lm(WAR~PA+ Rbat+ Rbaser+ Rdp +Rfield+ Rpos+ RAA+ WAA+ Rrep+ RAR+ oRAR,war))
+
+```
+
+```{r}
+m1 = lm(WAR~WAA+ Rrep,war)
+m2 = lm(WAR~Rbat+ WAA+ Rrep,war)
+```
+
+```{r}
+ols_plot_resid_qq(m1)
+ols_test_normality(m1)
+ols_plot_resid_fit(m1)
+anova1 = anova(m1)
+sst1 = sum(anova1$'Sum Sq')
+1-PRESS(m1)/(sst1)
+```
+
+
+
+```{r}
+
+ols_plot_resid_qq(lm(WAR~Rbat+ WAA+ Rrep,war))
+ols_test_normality(lm(WAR~Rbat+ WAA+ Rrep,war))
+ols_plot_resid_fit(lm(WAR~Rbat+ WAA+ Rrep,war))
+anova2 = anova(m2)
+sst2 = sum(anova2$'Sum Sq')
+1-PRESS(m2)/(sst2) 
+```
+
+- For model 1, the PRESS statistic is 0.1311349 and the predictive R-squared is 0.9999251.
+- For model 2, the PRESS statistic is 0.1231245 and the predictive R-squared is 0.9999297.
+- According to the above result, model 2 has a larger value of the predictive R-square, so model 2 is better than model 1.
+
+
+```{r}
+summary(lm(WAR~Rbat+ WAA+ Rrep,war))
+```
+
+- I can now take the summary of model 2 to get $$\hat{y} = 0.3174571 + (0.0007235)Rbat + (0.9939082)WAA + (0.0950607)Rrep$$
+
+## **Conclusion**
+
+With my analysis I was able to indicate which baseball statistics could be used to determine the best model. I was able to do this by using PRESS and VIF. Thus, with a combination of runs batting, wins above replacement and runs from replacement player statistics, I am able to find the best model to determine WAR, versus if it were done with individual baseball statistics or with a combination of other statistics, in which I would not be able to achieve the same results. Since WAR is the best metric to determine which team is most likely to be successful, then my model, $$\hat{y} = 0.3174571 + (0.0007235)Rbat + (0.9939082)WAA + (0.0950607)Rrep$$ should also be a good indicator of team success. Thus, my model will look at multiple variables and could potentially determine which teams could have the best success in the playoffs for a given season.
+
+
+
+
+
+
+## **Reference**
+
+1. 2017 MLB Value. (2017). Retrieved from Baseball Reference: https://www.baseball-reference.com/leagues/MLB/2017-value-batting.shtml
